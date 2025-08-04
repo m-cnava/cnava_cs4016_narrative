@@ -5,12 +5,20 @@
 <title>Cars 2017 - Martini Glass Narrative</title>
 <link rel="stylesheet" href="style.css">
 <script src="https://d3js.org/d3.v7.min.js"></script>
-<script src="https://unpkg.com/d3-annotation@2.5.1/dist/d3-annotation.min.js"></script>
 </head>
 <body>
 <h1>Fuel Efficiency of 2017 Cars</h1>
-<div id="description" class="description"></div>
-<div id="vis"></div>
+<div id="description" class="description">
+  <button class="close-btn" onclick="toggleDescription()">×</button>
+  <div class="description-content"></div>
+</div>
+<div id="vis">
+  <button class="annotation-toggle" onclick="toggleChartAnnotations()">Hide Annotations</button>
+</div>
+<div id="legend" class="legend">
+  <button class="close-btn" onclick="toggleLegend()">×</button>
+  <div class="legend-content"></div>
+</div>
 <div class="controls">
   <button id="prev">Previous</button>
   <button id="next">Next</button>
