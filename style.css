@@ -1,17 +1,52 @@
 body {
   font-family: Arial, sans-serif;
   text-align: center;
-  margin: 20px;
+  margin: 0;
+  padding: 20px;
+  background-color: #fafafa;
+}
+
+h1 {
+  margin-bottom: 10px;
 }
 
 #vis {
   margin: auto;
-  width: 900px;
+  width: 800px;
   height: 600px;
+  background: white;
+  border: 1px solid #ddd;
+  box-shadow: 0px 0px 8px rgba(0,0,0,0.1);
 }
 
-button {
-  margin-top: 20px;
+button,
+select {
+  margin: 10px;
   padding: 10px 20px;
   font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f8f8f8;
+  cursor: pointer;
+}
+
+button:hover,
+select:hover {
+  background-color: #eaeaea;
+}
+
+.tooltip {
+  position: absolute;
+  text-align: left;
+  padding: 8px;
+  font-size: 12px;
+  background: lightsteelblue;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0px 0px 5px rgba(0,0,0,0.2);
+}
+
+.annotation-note-title {
+  font-weight: bold;
 }
