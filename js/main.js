@@ -10,7 +10,53 @@ const svg = d3.select("#vis").append("svg")
 
 const tooltip = d3.select("#tooltip");
 const fuelFilter = d3.select("#fuelFilter");
-const description = d3.select("#description");
+const description = d3.select("#description .description-content");
+const legend = d3.select("#legend .legend-content");
+
+// Global variables for visibility state
+let descriptionVisible = true;
+let legendVisible = true;
+let chartAnnotationsVisible = true;
+
+// Toggle functions for description and legend
+window.toggleDescription = function() {
+  descriptionVisible = !descriptionVisible;
+  const descriptionContainer = d3.select("#description");
+  const closeBtn = descriptionContainer.select(".close-btn");
+  
+  if (descriptionVisible) {
+    descriptionContainer.classed("hidden", false);
+    closeBtn.text("×");
+    // Restore the description content for the current scene
+    description.html(sceneDescriptions[currentScene]);
+  } else {
+    descriptionContainer.classed("hidden", true);
+    closeBtn.text("+");
+  }
+};
+
+window.toggleLegend = function() {
+  legendVisible = !legendVisible;
+  const legendContainer = d3.select("#legend");
+  if (legendVisible) {
+    legendContainer.classed("hidden", false);
+  } else {
+    legendContainer.classed("hidden", true);
+  }
+};
+
+window.toggleChartAnnotations = function() {
+  chartAnnotationsVisible = !chartAnnotationsVisible;
+  const toggleButton = d3.select(".annotation-toggle");
+  
+  if (chartAnnotationsVisible) {
+    toggleButton.text("Hide Annotations").classed("hidden", false);
+    svg.selectAll("g.annotation-group").style("display", "block");
+  } else {
+    toggleButton.text("Show Annotations").classed("hidden", true);
+    svg.selectAll("g.annotation-group").style("display", "none");
+  }
+};
 
 // Scene descriptions
 const sceneDescriptions = [
@@ -30,8 +76,8 @@ const sceneConfig = {
     pointOpacity: 0.6,
     showGrid: true,
     annotations: [
-      { title: "Overview", label: "Most cars cluster between 20–40 MPG.", x: 200, y: 200, dy: -50, dx: 50 },
-      { title: "Pattern", label: "Notice the general upward trend - better city MPG often means better highway MPG.", x: 400, y: 300, dy: 30, dx: -50 }
+      { title: "Overview", label: "Most cars cluster between 20–40 MPG.", x: 300, y: 300, dy: -80, dx: 60 },
+      { title: "Pattern", label: "Notice the general upward trend - better city MPG often means better highway MPG.", x: 500, y: 400, dy: 40, dx: -80 }
     ]
   },
   1: {
@@ -39,9 +85,9 @@ const sceneConfig = {
     pointOpacity: 0.8,
     showGrid: true,
     annotations: [
-      { title: "Fuel Types", label: "Different colors represent fuel types.", x: 400, y: 150, dy: -50, dx: 50 },
-      { title: "Gasoline Dominance", label: "Orange points show gasoline cars dominate the market.", x: 250, y: 250, dy: -30, dx: -50 },
-      { title: "Diesel Efficiency", label: "Green diesel vehicles show good highway efficiency.", x: 350, y: 180, dy: -40, dx: 60 }
+      { title: "Fuel Types", label: "Different colors represent fuel types.", x: 400, y: 200, dy: -60, dx: 80 },
+      { title: "Gasoline Dominance", label: "Orange points show gasoline cars dominate the market.", x: 250, y: 350, dy: -40, dx: -60 },
+      { title: "Diesel Efficiency", label: "Green diesel vehicles show good highway efficiency.", x: 350, y: 250, dy: -50, dx: 70 }
     ]
   },
   2: {
@@ -49,9 +95,9 @@ const sceneConfig = {
     pointOpacity: 0.9,
     showGrid: false,
     annotations: [
-      { title: "Electric Revolution", label: "Purple electric vehicles achieve exceptional efficiency!", x: 500, y: 120, dy: -60, dx: 60 },
-      { title: "Outlier Analysis", label: "Electric cars are clear outliers with 2-3x better efficiency than traditional vehicles.", x: 450, y: 100, dy: -80, dx: -40 },
-      { title: "Future Trend", label: "This pattern suggests the potential for widespread adoption of electric vehicles.", x: 300, y: 150, dy: 40, dx: -60 }
+      { title: "Electric Revolution", label: "Purple electric vehicles achieve exceptional efficiency!", x: 600, y: 150, dy: -70, dx: 90 },
+      { title: "Outlier Analysis", label: "Electric cars are clear outliers with 2-3x better efficiency than traditional vehicles.", x: 550, y: 120, dy: -90, dx: -50 },
+      { title: "Future Trend", label: "This pattern suggests the potential for widespread adoption of electric vehicles.", x: 400, y: 200, dy: 50, dx: -80 }
     ]
   },
   3: {
@@ -59,8 +105,8 @@ const sceneConfig = {
     pointOpacity: 1.0,
     showGrid: false,
     annotations: [
-      { title: "Interactive Exploration", label: "Hover for details or filter by fuel type.", x: 250, y: 200, dy: -50, dx: 50 },
-      { title: "Data Discovery", label: "Use the dropdown to explore patterns within specific fuel categories.", x: 400, y: 300, dy: 30, dx: -50 }
+      { title: "Interactive Exploration", label: "Hover for details or filter by fuel type.", x: 300, y: 300, dy: -60, dx: 70 },
+      { title: "Data Discovery", label: "Use the dropdown to explore patterns within specific fuel categories.", x: 500, y: 400, dy: 40, dx: -90 }
     ]
   }
 };
@@ -117,16 +163,75 @@ d3.csv("data/cars2017.csv").then(data => {
     .text("Highway MPG (Miles Per Gallon)");
 
   function drawAnnotations(annotations) {
-    const annotationElements = annotations.map(ann => ({
-      note: { title: ann.title, label: ann.label },
-      x: ann.x,
-      y: ann.y,
-      dy: ann.dy,
-      dx: ann.dx
-    }));
-    
-    const makeAnnotations = d3.annotation().annotations(annotationElements);
-    svg.append("g").attr("class", "annotation-layer").call(makeAnnotations);
+    annotations.forEach(ann => {
+      // Create annotation group
+      const annotationGroup = svg.append("g").attr("class", "annotation-group");
+      
+      // Calculate better positioning
+      const boxWidth = Math.max(ann.title.length * 7, ann.label.length * 5.5);
+      const boxHeight = 50;
+      const padding = 10;
+      
+      // Position the box to avoid overlapping with data points
+      let boxX = ann.x + (ann.dx || 0);
+      let boxY = ann.y + (ann.dy || 0);
+      
+      // Adjust position if box would go off-screen
+      if (boxX + boxWidth > width - 20) {
+        boxX = ann.x - boxWidth - 20;
+      }
+      if (boxY + boxHeight > height - 20) {
+        boxY = ann.y - boxHeight - 20;
+      }
+      
+      // Create annotation box with better styling
+      const box = annotationGroup.append("g")
+        .attr("transform", `translate(${boxX}, ${boxY})`);
+      
+      // Create background with shadow effect
+      box.append("rect")
+        .attr("width", boxWidth + padding * 2)
+        .attr("height", boxHeight + padding * 2)
+        .attr("rx", 8)
+        .style("fill", "rgba(255, 255, 255, 0.95)")
+        .style("stroke", "#ddd")
+        .style("stroke-width", 1)
+        .style("filter", "drop-shadow(0 2px 4px rgba(0,0,0,0.1))");
+      
+      // Add title with better typography
+      box.append("text")
+        .attr("x", padding)
+        .attr("y", padding + 15)
+        .style("font-weight", "600")
+        .style("font-size", "13px")
+        .style("fill", "#333")
+        .text(ann.title);
+      
+      // Add label with better typography
+      box.append("text")
+        .attr("x", padding)
+        .attr("y", padding + 32)
+        .style("font-size", "11px")
+        .style("fill", "#666")
+        .style("line-height", "1.3")
+        .text(ann.label);
+      
+      // Create a subtle connecting line
+      const lineStartX = ann.x;
+      const lineStartY = ann.y;
+      const lineEndX = boxX + (boxWidth + padding * 2) / 2;
+      const lineEndY = boxY + (boxHeight + padding * 2) / 2;
+      
+      annotationGroup.append("line")
+        .attr("x1", lineStartX)
+        .attr("y1", lineStartY)
+        .attr("x2", lineEndX)
+        .attr("y2", lineEndY)
+        .style("stroke", "#999")
+        .style("stroke-width", 1.5)
+        .style("opacity", 0.6)
+        .style("stroke-dasharray", "3,3");
+    });
   }
 
   function getColor(d) {
@@ -177,17 +282,63 @@ d3.csv("data/cars2017.csv").then(data => {
       .on("mouseout", () => tooltip.transition().style("opacity", 0));
   }
 
+  function createLegend() {
+    // Clear existing legend
+    legend.html("");
+    
+    // Check if data is loaded
+    if (!globalData || globalData.length === 0) {
+      legend.append("p").text("Loading legend...");
+      return;
+    }
+    
+    // Add title
+    legend.append("h3").text("Circle Size Legend - Engine Cylinders");
+    
+    // Create table
+    const table = legend.append("table").attr("class", "legend-table");
+    
+    // Add header
+    const header = table.append("thead").append("tr");
+    header.append("th").text("Circle Size");
+    header.append("th").text("Engine Cylinders");
+    header.append("th").text("Example");
+    
+    // Add body
+    const tbody = table.append("tbody");
+    
+    // Get unique cylinder counts from data
+    const cylinderCounts = Array.from(new Set(globalData.map(d => d.EngineCylinders))).sort((a, b) => a - b);
+    
+    cylinderCounts.forEach(cylinders => {
+      const row = tbody.append("tr");
+      const radius = 2 + cylinders;
+      
+      row.append("td").text(`${radius}px radius`);
+      row.append("td").text(cylinders === 0 ? "Electric (0)" : `${cylinders} cylinders`);
+      
+      // Create visual example
+      const exampleCell = row.append("td");
+      exampleCell.append("div")
+        .attr("class", "circle-example")
+        .style("width", `${radius * 2}px`)
+        .style("height", `${radius * 2}px`);
+    });
+  }
+
   function updateScene() {
     // Clear previous scene elements
-    svg.selectAll("g.annotation-layer").remove();
+    svg.selectAll("g.annotation-group").remove();
     svg.selectAll(".grid-line").remove();
 
     // Update parameters based on scene
     explorationUnlocked = (currentScene === 3);
     fuelFilter.style("display", explorationUnlocked ? "inline" : "none");
 
-    // Update description
-    description.html(sceneDescriptions[currentScene]);
+    // Update description - only if it's visible
+    if (descriptionVisible) {
+      description.html(sceneDescriptions[currentScene]);
+    }
 
     // Update button states
     d3.select("#prev").property("disabled", currentScene === 0);
@@ -220,6 +371,9 @@ d3.csv("data/cars2017.csv").then(data => {
 
     // Draw annotations
     drawAnnotations(config.annotations);
+    
+    // Update legend
+    createLegend();
   }
 
   // Event listeners (triggers)
@@ -240,4 +394,7 @@ d3.csv("data/cars2017.csv").then(data => {
 
   // Initialize first scene
   updateScene();
+  
+  // Create initial legend after data is loaded
+  createLegend();
 });
