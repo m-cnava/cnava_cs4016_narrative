@@ -1,137 +1,129 @@
-const width = 900;
-const height = 600;
-const margin = { top: 40, right: 40, bottom: 50, left: 70 };
-let currentScene = 1;
-let svg, xScale, yScale, colorScale, radiusScale, data;
+let currentScene = 0;
+let explorationUnlocked = false;
+let selectedFuel = "All";
 
-// Load data
-d3.csv("data/cars2017.csv").then(raw => {
-  data = raw.map(d => ({
-    cylinders: +d.EngineCylinders,
-    cityMPG: +d.AverageCityMPG,
-    highwayMPG: +d.AverageHighwayMPG,
-    fuel: d.Fuel,
-    make: d.Make,
-    model: d.Model
-  }));
-  initScales();
-  drawScene1();
-});
+const width = 800, height = 600;
+const svg = d3.select("#vis").append("svg")
+  .attr("width", width)
+  .attr("height", height);
 
-// Initialize scales
-function initScales() {
-  const cyl = data.map(d => d.cylinders || 0.5);
-  xScale = d3.scaleLog().domain([0.5, d3.max(cyl)]).range([margin.left, width - margin.right]);
-  yScale = d3.scaleLinear().domain([0, d3.max(data, d => d.cityMPG)]).range([height - margin.bottom, margin.top]);
-  colorScale = d3.scaleOrdinal()
-    .domain(["Gasoline", "Diesel", "Hybrid", "Electricity"])
-    .range(["gray", "brown", "green", "blue"]);
-  radiusScale = d3.scaleSqrt().domain([0, d3.max(data, d => d.highwayMPG)]).range([2, 10]);
-}
+const tooltip = d3.select("#tooltip");
+const fuelFilter = d3.select("#fuelFilter");
 
-// Clear and setup SVG
-function setupSVG(title) {
-  d3.select("#vis").html("");
-  svg = d3.select("#vis")
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
+d3.csv("data/cars2017.csv").then(data => {
+  data.forEach(d => {
+    d.AverageCityMPG = +d.AverageCityMPG;
+    d.AverageHighwayMPG = +d.AverageHighwayMPG;
+    d.EngineCylinders = +d.EngineCylinders;
+  });
 
-  // Axes
-  svg.append("g")
-    .attr("transform", `translate(0,${height - margin.bottom})`)
-    .call(d3.axisBottom(xScale).ticks(6, "~s"));
+  const fuels = Array.from(new Set(data.map(d => d.Fuel)));
+  fuelFilter.selectAll("option")
+    .data(["All"].concat(fuels))
+    .enter().append("option")
+    .attr("value", d => d)
+    .text(d => d);
 
-  svg.append("g")
-    .attr("transform", `translate(${margin.left},0)`)
-    .call(d3.axisLeft(yScale));
+  const xScale = d3.scaleLog().domain([10, 150]).range([60, width - 40]);
+  const yScale = d3.scaleLog().domain([10, 150]).range([height - 60, 40]);
 
-  svg.append("text")
-    .attr("x", width / 2)
-    .attr("y", height - 10)
-    .attr("text-anchor", "middle")
-    .text("Engine Cylinders (log scale)");
+  const xAxis = d3.axisBottom(xScale)
+    .tickValues([10, 20, 50, 100])
+    .tickFormat(d3.format("~s"));
+  const yAxis = d3.axisLeft(yScale)
+    .tickValues([10, 20, 50, 100])
+    .tickFormat(d3.format("~s"));
 
-  svg.append("text")
-    .attr("x", -height / 2)
-    .attr("y", 20)
-    .attr("transform", "rotate(-90)")
-    .attr("text-anchor", "middle")
-    .text("Average City MPG");
+  svg.append("g").attr("class", "x-axis")
+    .attr("transform", `translate(0, ${height - 60})`);
+  svg.append("g").attr("class", "y-axis")
+    .attr("transform", `translate(60, 0)`);
 
-  d3.select("#title").text(title);
-}
+  function drawAnnotations(title, label, x, y) {
+    const annotations = [
+      { note: { title, label }, x, y, dy: -50, dx: 50 }
+    ];
+    const makeAnnotations = d3.annotation().annotations(annotations);
+    svg.append("g").call(makeAnnotations);
+  }
 
-// Draw points
-function drawPoints(filteredData) {
-  svg.selectAll("circle")
-    .data(filteredData)
-    .join("circle")
-    .attr("cx", d => xScale(d.cylinders || 0.5))
-    .attr("cy", d => yScale(d.cityMPG))
-    .attr("r", d => radiusScale(d.highwayMPG))
-    .attr("fill", d => colorScale(d.fuel))
-    .attr("opacity", 0.7)
-    .on("mouseover", (event, d) => {
-      d3.select("#title").text(`${d.make} ${d.model}: ${d.fuel} (${d.cityMPG} MPG city)`);
-    })
-    .on("mouseout", () => {
-      d3.select("#title").text("Cars 2017 Narrative Visualization");
-    });
-}
-
-// Annotations
-function addAnnotation(note, x, y) {
-  const annotations = [
-    {
-      note: { title: note },
-      x: xScale(x),
-      y: yScale(y),
-      dy: -40,
-      dx: 40
+  function getColor(d) {
+    if (currentScene === 1 || currentScene === 2 || explorationUnlocked) {
+      if (d.Fuel === "Electricity") return "purple";
+      if (d.Fuel === "Diesel") return "green";
+      return "orange";
     }
-  ];
-  const makeAnnotations = d3.annotation().annotations(annotations);
-  svg.append("g").call(makeAnnotations);
-}
+    return "steelblue";
+  }
 
-// Scene 1
-function drawScene1() {
-  setupSVG("Scene 1: Overview of Cars");
-  drawPoints(data);
-  addAnnotation("Most cars cluster here", 4, 20);
-}
+  function filterData() {
+    if (!explorationUnlocked || selectedFuel === "All") return data;
+    return data.filter(d => d.Fuel === selectedFuel);
+  }
 
-// Scene 2
-function drawScene2() {
-  setupSVG("Scene 2: Gasoline/Diesel Focus");
-  const filtered = data.filter(d => d.fuel === "Gasoline" || d.fuel === "Diesel");
-  drawPoints(filtered);
-  addAnnotation("Larger engines → lower MPG", 8, 15);
-}
+  function drawPoints() {
+    const filtered = filterData();
+    const points = svg.selectAll(".point")
+      .data(filtered, d => d.Make + d.AverageCityMPG);
 
-// Scene 3
-function drawScene3() {
-  setupSVG("Scene 3: Alternative Fuels");
-  const filtered = data.filter(d => d.fuel !== "Gasoline" && d.fuel !== "Diesel");
-  drawPoints(filtered);
-  addAnnotation("Electric/Hybrid cars stand out", 0.5, 100);
+    points.join("circle")
+      .attr("class", "point")
+      .attr("cx", d => xScale(d.AverageCityMPG))
+      .attr("cy", d => yScale(d.AverageHighwayMPG))
+      .attr("r", d => 2 + d.EngineCylinders)
+      .attr("fill", getColor)
+      .on("mouseover", (event, d) => {
+        if (explorationUnlocked) {
+          tooltip.transition().style("opacity", 1);
+          tooltip.html(`<strong>${d.Make}</strong><br/>
+            Fuel: ${d.Fuel}<br/>
+            Cylinders: ${d.EngineCylinders}<br/>
+            City MPG: ${d.AverageCityMPG}<br/>
+            Highway MPG: ${d.AverageHighwayMPG}`)
+            .style("left", (event.pageX + 10) + "px")
+            .style("top", (event.pageY - 20) + "px");
+        }
+      })
+      .on("mouseout", () => tooltip.transition().style("opacity", 0));
+  }
 
-  // Change button text for exploration
-  d3.select("#next-button").text("Explore");
-}
+  function updateScene() {
+    svg.selectAll("g.annotation-group").remove();
 
-// Enable exploration
-function enableExploration() {
-  setupSVG("Explore Freely (Hover for details)");
-  drawPoints(data);
-  d3.select("#next-button").remove();
-}
+    // Lock interactions until final scene
+    explorationUnlocked = (currentScene === 3);
+    fuelFilter.style("display", explorationUnlocked ? "inline" : "none");
 
-// Button trigger
-d3.select("#next-button").on("click", () => {
-  currentScene++;
-  if (currentScene === 2) drawScene2();
-  else if (currentScene === 3) drawScene3();
-  else enableExploration();
+    drawPoints();
+
+    svg.select(".x-axis").call(xAxis);
+    svg.select(".y-axis").call(yAxis);
+
+    if (currentScene === 0) {
+      drawAnnotations("Overview", "Most cars cluster between 20–40 MPG.", 200, 200);
+    } else if (currentScene === 1) {
+      drawAnnotations("Fuel Types", "Different colors represent fuel types.", 400, 150);
+    } else if (currentScene === 2) {
+      drawAnnotations("Electric Cars", "Electric vehicles are outliers with high efficiency.", 500, 120);
+    } else {
+      drawAnnotations("Explore", "Hover for details or filter by fuel type.", 250, 200);
+    }
+  }
+
+  d3.select("#next").on("click", () => {
+    currentScene = Math.min(currentScene + 1, 3);
+    updateScene();
+  });
+
+  d3.select("#prev").on("click", () => {
+    currentScene = Math.max(currentScene - 1, 0);
+    updateScene();
+  });
+
+  fuelFilter.on("change", event => {
+    selectedFuel = event.target.value;
+    updateScene();
+  });
+
+  updateScene();
 });
