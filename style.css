@@ -15,7 +15,7 @@ h1 {
 
 .description {
   text-align: center;
-  margin: 20px 0;
+  margin: 20px auto;
   padding: 15px;
   background-color: white;
   border-radius: 8px;
@@ -23,19 +23,19 @@ h1 {
   font-size: 16px;
   line-height: 1.5;
   color: #555;
-  max-width: 1000px;
-  margin-left: auto;
-  margin-right: auto;
+  width: 1000px;
+  box-sizing: border-box;
 }
 
 #vis {
   text-align: center;
-  margin: 20px 0;
+  margin: 20px auto;
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   padding: 20px;
-  display: inline-block;
+  width: 1000px;
+  box-sizing: border-box;
 }
 
 .controls {
